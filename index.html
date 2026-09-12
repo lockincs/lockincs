@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lock in CS.</title>
+<meta name="description" content="A live feed of tweets tracked by Lock in CS." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <h1 class="title">Lock in CS.<span class="cursor" aria-hidden="true">_</span></h1>
+  <p class="byline">developed by <a href="https://soroushesnaashari.github.io" target="_blank" rel="noopener">Soroush</a></p>
+  <p class="socials">
+    <a href="https://t.me/lockincs" target="_blank" rel="noopener">Telegram: lockincs</a>
+    <span class="dot" aria-hidden="true">·</span>
+    <a href="https://instagram.com/lockincs" target="_blank" rel="noopener">Instagram: lockincs</a>
+  </p>
+</header>
+
+<main id="feed" class="feed" aria-live="polite">
+  <p class="status" id="status">Loading tweets…</p>
+</main>
+
+<footer class="site-footer">
+  <p>Lock in CS. — a feed, not an opinion.</p>
+</footer>
+
+<script src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<script src="app.js"></script>
+</body>
+</html>
