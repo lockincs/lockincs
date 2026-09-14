@@ -112,7 +112,7 @@ a:focus-visible {
 /* ---------- Feed ---------- */
 
 .feed {
-  max-width: 1800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 24px 80px;
 }
@@ -158,12 +158,6 @@ a:focus-visible {
 }
 
 /* ---------- Responsive ---------- */
-
-@media (max-width: 1500px) {
-  .row {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
 
 @media (max-width: 980px) {
   .row {
