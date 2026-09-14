@@ -9,7 +9,7 @@ let renderToken = 0; // lets us cancel a stale render if a resize happens mid-re
 function columnsForWidth(width) {
   if (width <= 560) return 1;
   if (width <= 980) return 2;
-  return 4;
+  return 6;
 }
 
 function extractTweetId(url) {
