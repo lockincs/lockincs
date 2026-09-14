@@ -9,8 +9,7 @@ let renderToken = 0; // lets us cancel a stale render if a resize happens mid-re
 function columnsForWidth(width) {
   if (width <= 560) return 1;
   if (width <= 980) return 2;
-  if (width <= 1500) return 4;
-  return 6;
+  return 4;
 }
 
 function extractTweetId(url) {
@@ -41,15 +40,10 @@ async function embedOne(tweetId, cell) {
     return null;
   }
   try {
-    // Match the embed's width to the cell's actual rendered width so
-    // Twitter's own sizing logic can't make it wider than the grid
-    // column (it has a hard minimum around 250px otherwise).
-    const cellWidth = Math.floor(cell.getBoundingClientRect().width);
     const iframe = await window.twttr.widgets.createTweet(tweetId, cell, {
       theme: "light",
       dnt: true,
       align: "center",
-      width: cellWidth > 0 ? cellWidth : undefined,
     });
     if (!iframe) {
       cell.classList.add("unavailable");
