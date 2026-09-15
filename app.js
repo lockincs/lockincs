@@ -21,7 +21,7 @@ function columnsForWidth(width) {
   if (width <= 560) return 1;
   if (width <= 980) return 2;
   if (width <= 1500) return 4;
-  return 6;
+  return 4;
 }
 
 function extractTweetId(url) {
