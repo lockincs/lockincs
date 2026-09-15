@@ -4,12 +4,24 @@ const statusEl = document.getElementById("status");
 
 let allTweets = [];
 let currentColumns = null;
-let renderToken = 0; // lets us cancel a stale render if a resize happens mid-render
+let renderToken = 0; // lets us cancel stale observers/queue items if a resize happens
+
+// A simple sequential queue: even if several rows scroll into view at once
+// (fast scrolling, big monitor), we only ask Twitter for one row's worth of
+// embeds at a time. This is what actually prevents the "Not found" errors
+// you were seeing further down the feed — that was Twitter's embed service
+// rate-limiting a burst of requests, not tweets actually being deleted.
+let queue = Promise.resolve();
+function enqueue(task) {
+  queue = queue.then(task).catch((err) => console.error(err));
+  return queue;
+}
 
 function columnsForWidth(width) {
   if (width <= 560) return 1;
   if (width <= 980) return 2;
-  return 4;
+  if (width <= 1500) return 4;
+  return 6;
 }
 
 function extractTweetId(url) {
@@ -40,10 +52,12 @@ async function embedOne(tweetId, cell) {
     return null;
   }
   try {
+    const cellWidth = Math.floor(cell.getBoundingClientRect().width);
     const iframe = await window.twttr.widgets.createTweet(tweetId, cell, {
       theme: "light",
       dnt: true,
       align: "center",
+      width: cellWidth > 0 ? cellWidth : undefined,
     });
     if (!iframe) {
       cell.classList.add("unavailable");
@@ -58,8 +72,36 @@ async function embedOne(tweetId, cell) {
   }
 }
 
-async function renderRows(columns) {
-  const myToken = ++renderToken;
+async function fillRow(rowEl, rowTweets, myToken) {
+  if (myToken !== renderToken) return;
+
+  const cells = rowTweets.map(() => {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    rowEl.appendChild(cell);
+    return cell;
+  });
+
+  const iframes = await Promise.all(
+    rowTweets.map((tweet, i) => embedOne(extractTweetId(tweet.url), cells[i]))
+  );
+
+  if (myToken !== renderToken) return;
+
+  const heights = iframes
+    .filter(Boolean)
+    .map((iframe) => iframe.offsetHeight || iframe.scrollHeight || 0);
+
+  const maxHeight = heights.length ? Math.max(...heights) : 300;
+
+  cells.forEach((cell) => {
+    cell.style.height = `${maxHeight}px`;
+  });
+
+  rowEl.style.minHeight = "";
+}
+
+function buildRows(columns, myToken) {
   feed.innerHTML = "";
 
   if (allTweets.length === 0) {
@@ -69,36 +111,32 @@ async function renderRows(columns) {
 
   const rows = chunk(allTweets, columns);
 
-  for (const rowTweets of rows) {
-    if (myToken !== renderToken) return; // a newer render superseded this one
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const rowEl = entry.target;
+        observer.unobserve(rowEl);
+        const rowTweets = JSON.parse(rowEl.dataset.tweets);
+        enqueue(() => fillRow(rowEl, rowTweets, myToken));
+      }
+    },
+    {
+      // Start loading a row a bit before it actually reaches the viewport,
+      // so tweets are usually already in place by the time you scroll to them.
+      rootMargin: "600px 0px",
+    }
+  );
 
+  for (const rowTweets of rows) {
     const rowEl = document.createElement("div");
     rowEl.className = "row";
     rowEl.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+    // Placeholder height avoids a big layout jump before embeds load in.
+    rowEl.style.minHeight = "300px";
+    rowEl.dataset.tweets = JSON.stringify(rowTweets);
     feed.appendChild(rowEl);
-
-    const cells = rowTweets.map(() => {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      rowEl.appendChild(cell);
-      return cell;
-    });
-
-    const iframes = await Promise.all(
-      rowTweets.map((tweet, i) => embedOne(extractTweetId(tweet.url), cells[i]))
-    );
-
-    if (myToken !== renderToken) return;
-
-    const heights = iframes
-      .filter(Boolean)
-      .map((iframe) => iframe.offsetHeight || iframe.scrollHeight || 0);
-
-    const maxHeight = heights.length ? Math.max(...heights) : 300;
-
-    cells.forEach((cell) => {
-      cell.style.height = `${maxHeight}px`;
-    });
+    observer.observe(rowEl);
   }
 }
 
@@ -114,7 +152,9 @@ const handleResize = debounce(() => {
   const cols = columnsForWidth(window.innerWidth);
   if (cols !== currentColumns) {
     currentColumns = cols;
-    renderRows(cols);
+    const myToken = ++renderToken; // cancels any in-flight/queued row fills from the old layout
+    queue = Promise.resolve();
+    buildRows(cols, myToken);
   }
 }, 250);
 
@@ -122,7 +162,8 @@ async function init() {
   try {
     allTweets = await loadTweets();
     currentColumns = columnsForWidth(window.innerWidth);
-    await renderRows(currentColumns);
+    const myToken = ++renderToken;
+    buildRows(currentColumns, myToken);
     window.addEventListener("resize", handleResize);
   } catch (err) {
     statusEl.textContent = "Couldn't load tweets right now.";
